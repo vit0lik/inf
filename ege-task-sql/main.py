@@ -1,22 +1,26 @@
 import pandas as pd
 import sqlite3
 
-data_frame = pd.read_excel('data/9.ods', engine='odf')
-data_frame.columns = ['a', 'b', 'c']
+file_path = '03.ods'
+sheets = pd.read_excel(file_path, sheet_name=None, engine='odf')
 
-connection = sqlite3.connect(':memory:')
-data_frame.to_sql('triangles', connection, index=False)
+conn = sqlite3.connect('data.db')
+
+for sheet_name, df in sheets.items():
+    df.columns = [c.replace(' ', '_').replace(',', '').replace('.', '') for c in df.columns]
+    df.to_sql(sheet_name.replace(' ', '_'), conn, index=False, if_exists='replace')
 
 query = """
-SELECT COUNT(*) 
-FROM triangles 
-WHERE (a + b > c) 
-  AND (a + c > b) 
-  AND (b + c > a);
+SELECT SUM(д.Количество_упаковок_шт * д."Цена_руб/шт")
+FROM Движение_товаров д
+JOIN Магазин м ON д.ID_магазина = м.ID_магазина
+JOIN Товар т ON д.Артикул = т.Артикул
+WHERE м.Район = 'Первомайский'
+  AND т.Поставщик = 'Макаронная фабрика'
+  AND д.Тип_операции = 'Поступление';
 """
 
-result = connection.execute(query).fetchall()[0][0]
+result = conn.execute(query).fetchall()[0][0]
+print(f"Ответ: ", result)
 
-print(f"Ответ: {result}")
-
-connection.close()
+conn.close()
